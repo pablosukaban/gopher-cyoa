@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"html/template"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,50 +10,9 @@ import (
 	gophercyoa "github.com/pablosukaban/gopher-cyoa"
 )
 
-type MyHandler struct {
-	stories gophercyoa.Story
-}
-
-const tpl = `
-<!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="UTF-8">
-		<title>{{.Title}}</title>
-	</head>
-	<body>
-		<h1>{{.Title}}</h1>
-		{{range .Story}}<p>{{ . }}</p>{{end}}
-		<p>Where now?</p>
-		<ol>
-			{{range .Options}}
-			<li>
-				<a href="{{.Arc}}">
-					{{.Text}}
-				</a>
-			</li>
-			{{end}}
-		</ol>
-	</body>
-</html>`
-
-func (mh MyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	storyName := r.URL.Path[1:]
-
-	t, err := template.New("webpage").Parse(tpl)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if currentStory, ok := mh.stories[storyName]; ok {
-		t.Execute(w, currentStory)
-	} else {
-		w.WriteHeader(http.StatusNotFound)
-	}
-}
-
 func main() {
 	fileName := flag.String("file", "gopher.json", "file name")
+	port := flag.Int("port", 8080, "port")
 	flag.Parse()
 
 	file, err := os.Open(*fileName)
@@ -62,12 +21,12 @@ func main() {
 	}
 
 	story, err := gophercyoa.JsonStory(file)
+	if err != nil {
+		panic(err)
+	}
 
-	mux := http.NewServeMux()
-	mh := MyHandler{story}
+	handler := gophercyoa.NewHandler(story)
 
-	mux.Handle("/", mh)
-
-	log.Print("Listening...")
-	http.ListenAndServe(":8080", mux)
+	log.Printf("Listening on port %d\n", *port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), handler))
 }
