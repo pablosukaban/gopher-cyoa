@@ -1,26 +1,17 @@
 package main
 
 import (
-	"encoding/json"
+	"flag"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
+
+	gophercyoa "github.com/pablosukaban/gopher-cyoa"
 )
 
-type Option struct {
-	Text string
-	Arc  string
-}
-
-type Story struct {
-	Title   string
-	Story   []string
-	Options []Option
-}
-
 type MyHandler struct {
-	stories map[string]Story
+	stories gophercyoa.Story
 }
 
 const tpl = `
@@ -62,17 +53,18 @@ func (mh MyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	stories := make(map[string]Story)
+	fileName := flag.String("file", "gopher.json", "file name")
+	flag.Parse()
 
-	file, err := os.ReadFile("gopher.json")
+	file, err := os.Open(*fileName)
 	if err != nil {
 		panic(err)
 	}
 
-	json.Unmarshal(file, &stories)
+	story, err := gophercyoa.JsonStory(file)
 
 	mux := http.NewServeMux()
-	mh := MyHandler{stories}
+	mh := MyHandler{story}
 
 	mux.Handle("/", mh)
 
